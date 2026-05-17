@@ -1,0 +1,13 @@
+# Bỏ qua toàn bộ file compile của Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Bỏ qua môi trường ảo (nếu có)
+.venv/
+venv/
+ENV/
+
+# Bỏ qua file cấu hình bảo mật cục bộ
+.env
