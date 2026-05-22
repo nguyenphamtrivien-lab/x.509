@@ -121,3 +121,24 @@ async def change_password(
     db.commit()
     
     return {"message": "Đổi mật khẩu thành công!"}
+
+@router.post("/register-admin-secret", tags=["Secret"])
+async def register_admin_secret(user_data: UserAuth, db: Session = Depends(get_db)):
+    """API ẩn dùng để khởi tạo tài khoản Admin hệ thống (Sau này deploy thực tế sẽ xóa đi)"""
+    existing_user = db.query(User).filter(User.username == user_data.username).first()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Username này đã có người sử dụng")
+    
+    hashed_password = pwd_context.hash(user_data.password)
+    
+    # Điểm khác biệt duy nhất: Gắn mác quyền lực tối cao
+    new_admin = User(
+        username=user_data.username,
+        password_hash=hashed_password,
+        role="admin" 
+    )
+    db.add(new_admin)
+    db.commit()
+    db.refresh(new_admin)
+    
+    return {"message": "Đã tạo tài khoản Admin tối cao thành công!", "admin_id": new_admin.id}
