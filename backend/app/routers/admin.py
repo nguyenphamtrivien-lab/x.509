@@ -74,3 +74,34 @@ async def approve_request(
         "message": f"Duyệt thành công yêu cầu #{req_id}!", 
         "cert_serial": new_cert.serial_number
     }
+
+@router.post("/certificates/{serial_number}/revoke")
+async def revoke_certificate(
+    serial_number: str,
+    reason: str = "Key Compromise", # Lý do mặc định phổ biến nhất
+    admin: User = Depends(get_admin_user),
+    db: Session = Depends(get_db)
+):
+    """Phong sát (Thu hồi) một chứng chỉ X.509 dựa vào Serial Number"""
+    
+    # 1. Quét DB tìm chứng chỉ theo số Serial
+    cert = db.query(Certificate).filter(Certificate.serial_number == serial_number).first()
+    
+    if not cert:
+        raise HTTPException(status_code=404, detail="Không tìm thấy chứng chỉ với Serial Number này!")
+    
+    if cert.status == "Revoked":
+        raise HTTPException(status_code=400, detail="Chứng chỉ này đã bị thu hồi từ trước rồi!")
+
+    # 2. Tiến hành "phong sát"
+    cert.status = "Revoked"
+    # (Sau này nếu rảnh ông có thể thêm 1 cột revocation_reason vào bảng Certificate để lưu lại cái biến `reason` kia cho xịn)
+    
+    db.commit()
+
+    return {
+        "message": "Đã phong sát thành công!",
+        "serial_number": serial_number,
+        "new_status": cert.status,
+        "reason": reason
+    }
