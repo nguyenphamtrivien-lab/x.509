@@ -25,7 +25,8 @@ from app.routers import customer
 app.include_router(customer.router)
 from app.routers import admin 
 app.include_router(admin.router) 
-
+from app.routers import public  
+app.include_router(public.router)  
 
 @app.get("/")
 async def root():
