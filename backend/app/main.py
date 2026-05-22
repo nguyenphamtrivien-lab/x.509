@@ -23,9 +23,9 @@ from app.routers import auth
 app.include_router(auth.router)
 from app.routers import customer
 app.include_router(customer.router)
-# Hai dòng này để comment tạm, khi nào code xong file admin và customer thì mở sau
-# from app.routers import admin, customer
-# app.include_router(admin.router)
+from app.routers import admin 
+app.include_router(admin.router) 
+
 
 @app.get("/")
 async def root():

@@ -1,56 +1,76 @@
-"""
-File: backend/app/routers/admin.py
-Description: Administrator endpoints for managing the CA and certificates.
-TODO:
-- Implement config management.
-- Implement Root CA generation.
-- Implement CSR approval and rejection logic.
-- Implement certificate revocation.
-- Implement CRL generation and update.
-- Implement audit log retrieval.
-- Add role-based access control (Admin only).
-"""
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+from pydantic import BaseModel
+import datetime
 
-from fastapi import APIRouter
+from app.database import get_db
+from app.models.models import User, CertRequest, Certificate
+from app.routers.auth import get_current_user
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
-@router.get("/config")
-async def get_config():
-    """Get system configuration."""
-    raise NotImplementedError()
+# ==========================================
+# CHỐT KIỂM TRA QUYỀN ADMIN
+# ==========================================
+def get_admin_user(current_user: User = Depends(get_current_user)):
+    """Hàm này kiểm tra xem user đang đăng nhập có phải là admin không"""
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="Truy cập bị từ chối. Khu vực này chỉ dành cho Admin!"
+        )
+    return current_user
 
-@router.put("/config")
-async def update_config():
-    """Update system configuration."""
-    raise NotImplementedError()
+# ==========================================
+# API ENDPOINTS
+# ==========================================
 
-@router.post("/gen-root-ca")
-async def gen_root_ca():
-    """Generate a new Root CA."""
-    raise NotImplementedError()
+@router.get("/requests/pending")
+async def get_pending_requests(
+    admin: User = Depends(get_admin_user), # Bắt buộc phải là Admin mới gọi được
+    db: Session = Depends(get_db)
+):
+    """Lấy danh sách toàn bộ các yêu cầu cấp chứng chỉ (CSR) đang chờ duyệt"""
+    requests = db.query(CertRequest).filter(CertRequest.status == "Pending").all()
+    if not requests:
+        return {"message": "Hiện tại không có yêu cầu nào đang chờ duyệt."}
+    return requests
 
-@router.post("/approve-csr/{csr_id}")
-async def approve_csr(csr_id: int):
-    """Approve a Certificate Signing Request and issue certificate."""
-    raise NotImplementedError()
+@router.post("/requests/{req_id}/approve")
+async def approve_request(
+    req_id: int,
+    admin: User = Depends(get_admin_user),
+    db: Session = Depends(get_db)
+):
+    """Duyệt yêu cầu CSR và tiến hành cấp chứng chỉ"""
+    
+    # 1. Tìm cái đơn yêu cầu trong DB
+    req = db.query(CertRequest).filter(CertRequest.id == req_id).first()
+    if not req:
+        raise HTTPException(status_code=404, detail="Không tìm thấy yêu cầu này")
+    if req.status != "Pending":
+        raise HTTPException(status_code=400, detail="Yêu cầu này đã được xử lý rồi")
 
-@router.post("/reject-csr/{csr_id}")
-async def reject_csr(csr_id: int):
-    """Reject a Certificate Signing Request."""
-    raise NotImplementedError()
+    # 2. Đổi trạng thái đơn thành "Đã duyệt"
+    req.status = "Approved"
 
-@router.post("/revoke-cert/{cert_id}")
-async def revoke_cert(cert_id: int):
-    """Revoke an issued certificate."""
-    raise NotImplementedError()
+    # 3. TẠO CHỨNG CHỈ (Chỗ này sau này sẽ cắm code Core Mật mã của M1 vào)
+    # Tạm thời chúng ta sẽ tạo một chứng chỉ giả lập để test luồng DB
+    new_cert = Certificate(
+        user_id=req.user_id,
+        serial_number=f"SN-{req.id}-{int(datetime.datetime.now().timestamp())}",
+        subject="Đang chờ M1 bóc tách từ CSR", 
+        issuer="KHTN CA",
+        valid_from=datetime.datetime.utcnow(),
+        valid_to=datetime.datetime.utcnow() + datetime.timedelta(days=365),
+        status="Active",
+        pem_data="-----BEGIN CERTIFICATE-----\n(BẠN M1 SẼ ĐỔ CHỮ KÝ VÀO ĐÂY)\n-----END CERTIFICATE-----"
+    )
+    
+    db.add(new_cert)
+    db.commit()
 
-@router.post("/update-crl")
-async def update_crl():
-    """Generate and update the Certificate Revocation List."""
-    raise NotImplementedError()
-
-@router.get("/audit-logs")
-async def get_audit_logs():
-    """Retrieve system audit logs."""
-    raise NotImplementedError()
+    return {
+        "message": f"Duyệt thành công yêu cầu #{req_id}!", 
+        "cert_serial": new_cert.serial_number
+    }
