@@ -3,7 +3,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 import datetime
 
-# Đây chính là cái "Base" mà file main.py đang tìm kiếm nãy giờ!
+# Declarative base for SQLAlchemy models
 Base = declarative_base()
 
 class User(Base):
@@ -15,7 +15,7 @@ class User(Base):
     role = Column(String(50), nullable=False, default='customer')
     is_active = Column(Boolean, default=True)
 
-    # Thiết lập mối quan hệ để dễ truy vấn
+    # Relationships for ORM querying
     certificates = relationship("Certificate", back_populates="user", cascade="all, delete-orphan")
     requests = relationship("CertRequest", back_populates="user", cascade="all, delete-orphan")
 

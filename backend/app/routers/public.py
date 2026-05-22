@@ -10,21 +10,18 @@ router = APIRouter(tags=["Public API"])
 @router.get("/crl")
 async def get_certificate_revocation_list(db: Session = Depends(get_db)):
     """
-    Xuất Danh sách chứng chỉ bị thu hồi (CRL). 
-    Đây là API Public, bất kỳ ai cũng có thể gọi để kiểm tra.
+    Export the Certificate Revocation List (CRL).
+    Public endpoint accessible without authentication.
     """
-    # Lục tìm toàn bộ chứng chỉ có trạng thái Revoked
     revoked_certs = db.query(Certificate).filter(Certificate.status == "Revoked").all()
     
-    # Đóng gói thành định dạng danh sách đen
     revoked_list = []
     for cert in revoked_certs:
         revoked_list.append({
             "serial_number": cert.serial_number,
-            "revocation_date": datetime.datetime.utcnow().isoformat() # Thực tế có thể lấy từ db nếu ông có cột thời gian thu hồi
+            "revocation_date": datetime.datetime.utcnow().isoformat()
         })
     
-    # Trả về cấu trúc giả lập của một file CRL chuẩn X.509
     return {
         "issuer": "KHTN CA",
         "last_update": datetime.datetime.utcnow().isoformat(),
@@ -35,20 +32,18 @@ async def get_certificate_revocation_list(db: Session = Depends(get_db)):
 @router.get("/ocsp/{serial_number}")
 async def check_certificate_status(serial_number: str, db: Session = Depends(get_db)):
     """
-    Giao thức OCSP (Online Certificate Status Protocol): 
-    Kiểm tra trạng thái của một chứng chỉ cụ thể xem nó là Good, Revoked hay Unknown.
+    Online Certificate Status Protocol (OCSP) endpoint:
+    Check the current status (Good, Revoked, Unknown) of a specific certificate.
     """
     cert = db.query(Certificate).filter(Certificate.serial_number == serial_number).first()
     
-    # Nếu không tìm thấy trong DB
     if not cert:
         return {
             "serial_number": serial_number,
             "status": "Unknown",
-            "message": "Không tìm thấy chứng chỉ này trong hệ thống."
+            "message": "Certificate not found in the system."
         }
     
-    # Nếu tìm thấy, trả về trạng thái chuẩn OCSP
     ocsp_status = "Good" if cert.status == "Active" else "Revoked"
     
     return {

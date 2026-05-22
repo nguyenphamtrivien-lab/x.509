@@ -1,16 +1,15 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-# SỬA LỖI Ở ĐÂY: Thêm "app." vào trước đường dẫn
 from app.database import engine
 from app.models.models import Base
 
-# Yêu cầu SQLAlchemy tự động dò class và tạo bảng nếu chưa có
+# Automatically detect models and create database tables if they do not exist
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="X.509 Certificate Management System")
 
-# Cấu hình CORS cho Frontend gọi API
+# CORS configuration to allow Frontend API calls
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

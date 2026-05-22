@@ -1,22 +1,22 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-# Chuỗi kết nối SQL Server (Sử dụng Windows Authentication)
-# Lưu ý: Chữ "localhost" có thể cần đổi thành "localhost\SQLEXPRESS" hoặc "Tên_Máy_Tính" tùy vào lúc đăng nhập SSMS
+# SQL Server connection string (Using Windows Authentication)
+# Note: "localhost" might need to be changed to "localhost\SQLEXPRESS" or your PC Name based on SSMS login
 SERVER_NAME = "localhost" 
 DATABASE_NAME = "PKI_X509"
 
-# Cấu hình chuỗi kết nối dùng pyodbc
+# Connection string configuration using pyodbc
 SQLALCHEMY_DATABASE_URL = f"mssql+pyodbc://@{SERVER_NAME}/{DATABASE_NAME}?driver=ODBC+Driver+17+for+SQL+Server&Trusted_Connection=yes"
 
 try:
     engine = create_engine(SQLALCHEMY_DATABASE_URL)
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    print("✅ Đã khởi tạo kết nối SQL Server thành công!")
+    print("✅ SQL Server connection successfully initialized!")
 except Exception as e:
-    print(f"❌ Lỗi kết nối DB: {e}")
+    print(f"❌ Database connection error: {e}")
 
-# Hàm này dùng để mở kết nối mỗi khi có request gọi tới API, và đóng lại khi xong
+# Dependency to establish and close database sessions per request
 def get_db():
     db = SessionLocal()
     try:
