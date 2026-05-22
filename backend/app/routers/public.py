@@ -31,3 +31,28 @@ async def get_certificate_revocation_list(db: Session = Depends(get_db)):
         "next_update": (datetime.datetime.utcnow() + datetime.timedelta(days=1)).isoformat(),
         "revoked_certificates": revoked_list
     }
+
+@router.get("/ocsp/{serial_number}")
+async def check_certificate_status(serial_number: str, db: Session = Depends(get_db)):
+    """
+    Giao thức OCSP (Online Certificate Status Protocol): 
+    Kiểm tra trạng thái của một chứng chỉ cụ thể xem nó là Good, Revoked hay Unknown.
+    """
+    cert = db.query(Certificate).filter(Certificate.serial_number == serial_number).first()
+    
+    # Nếu không tìm thấy trong DB
+    if not cert:
+        return {
+            "serial_number": serial_number,
+            "status": "Unknown",
+            "message": "Không tìm thấy chứng chỉ này trong hệ thống."
+        }
+    
+    # Nếu tìm thấy, trả về trạng thái chuẩn OCSP
+    ocsp_status = "Good" if cert.status == "Active" else "Revoked"
+    
+    return {
+        "serial_number": serial_number,
+        "status": ocsp_status,
+        "check_time": datetime.datetime.utcnow().isoformat()
+    }
