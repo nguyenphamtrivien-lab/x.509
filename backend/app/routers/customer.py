@@ -90,3 +90,18 @@ async def request_revoke(
     db.commit()
     
     return {"message": "Đã gửi yêu cầu thu hồi thành công, chờ Admin phê duyệt."}
+
+@router.get("/certificates")
+async def get_my_certificates(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Lấy danh sách toàn bộ chứng chỉ X.509 đã được cấp cho tài khoản hiện tại"""
+    
+    # Tìm trong bảng Certificate những chứng chỉ thuộc về user_id này
+    certs = db.query(Certificate).filter(Certificate.user_id == current_user.id).all()
+    
+    if not certs:
+        return {"message": "Bạn chưa có chứng chỉ nào được cấp hoặc đang chờ duyệt."}
+    
+    return certs
