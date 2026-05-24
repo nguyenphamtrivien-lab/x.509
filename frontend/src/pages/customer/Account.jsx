@@ -19,7 +19,6 @@ const Account = () => {
     setMessage('Yêu cầu đổi mật khẩu đã được gửi!');
     setPasswordData({ oldPassword: '', newPassword: '' }); // Clear form
   };
-s
   return (
     <div className="max-w-3xl mx-auto p-6 bg-white rounded shadow mt-8">
       <h1 className="text-2xl font-bold border-b pb-2 mb-6">Quản Lý Tài Khoản</h1>
