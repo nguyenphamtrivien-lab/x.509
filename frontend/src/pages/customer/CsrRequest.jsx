@@ -14,7 +14,7 @@ const CsrRequest = () => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}` 
         },
-        body: JSON.stringify({ csr_data: csrData }) // Key theo schema cơ sở dữ liệu
+        body: JSON.stringify({ csr_data: csrData })
       });
 
       const data = await response.json();

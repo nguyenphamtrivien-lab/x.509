@@ -17,7 +17,7 @@ const Account = () => {
     e.preventDefault();
     console.log("Đổi mật khẩu với dữ liệu:", passwordData);
     setMessage('Yêu cầu đổi mật khẩu đã được gửi!');
-    setPasswordData({ oldPassword: '', newPassword: '' }); // Clear form
+    setPasswordData({ oldPassword: '', newPassword: '' });
   };
   return (
     <div className="max-w-3xl mx-auto p-6 bg-white rounded shadow mt-8">

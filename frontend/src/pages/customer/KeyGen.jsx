@@ -11,7 +11,6 @@ const KeyGen = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    // Tự động điều chỉnh size/curve khi đổi loại khóa
     if (name === 'key_type') {
       setFormData({
         ...formData,
@@ -39,7 +38,7 @@ const KeyGen = () => {
       
       const data = await response.json();
       if (response.ok) {
-        setKeys(data); // Nhận về public_key và encrypted_private_key
+        setKeys(data);
         alert("Đã sinh khóa thành công! Vui lòng lưu trữ cẩn thận.");
       } else {
         alert("Lỗi: " + data.detail);
