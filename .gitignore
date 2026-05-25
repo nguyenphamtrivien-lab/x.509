@@ -92,3 +92,10 @@ Thumbs.db
 
 # Ignore review notes
 review.md
+
+# Database
+*.db
+*.sqlite3
+
+# Backups
+frontend-backup/

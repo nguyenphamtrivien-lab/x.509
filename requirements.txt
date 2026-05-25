@@ -1,7 +1,3 @@
-# requirements.txt
-# Dependencies for the X.509 Certificate Management System
-# TODO: Add specific versions and other required dependencies
-
 fastapi
 uvicorn
 sqlalchemy
@@ -9,3 +5,7 @@ pymysql
 cryptography
 pydantic
 python-dotenv
+pyjwt
+passlib[bcrypt]
+bcrypt
+python-multipart

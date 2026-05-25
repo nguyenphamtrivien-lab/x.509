@@ -1,50 +1,66 @@
 """
 File: backend/app/models/models.py
 Description: SQLAlchemy database models.
-TODO:
-- Add relationship between models (e.g., User -> Certificate, User -> CertRequest).
-- Add specific data types and constraints (e.g., String lengths).
-- Define base class.
 """
 
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text
-# from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, ForeignKey
+from sqlalchemy.orm import relationship
+from app.database import Base
 
-# Base = declarative_base()
-# class User(Base):
+class User(Base):
+    __tablename__ = "users"
 
-class User:
-    id = Column(Integer, primary_key=True)
-    username = Column(String)
-    password_hash = Column(String)
-    role = Column(String) # admin or customer
-    is_active = Column(Boolean)
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(255), unique=True, index=True, nullable=False)
+    password_hash = Column(String(255), nullable=False)
+    role = Column(String(50), nullable=False, default="customer") # "admin" or "customer"
+    is_active = Column(Boolean, default=True)
 
-class Certificate:
-    id = Column(Integer, primary_key=True)
-    serial_number = Column(String)
-    subject = Column(String)
-    issuer = Column(String)
-    valid_from = Column(DateTime)
-    valid_to = Column(DateTime)
-    status = Column(String) # active, revoked, expired
-    pem_data = Column(Text)
+    # Quan hệ
+    certificates = relationship("Certificate", back_populates="user")
+    cert_requests = relationship("CertRequest", back_populates="user")
+    audit_logs = relationship("AuditLog", back_populates="user")
 
-class CertRequest:
-    id = Column(Integer, primary_key=True)
-    user_id = Column(Integer)
-    csr_data = Column(Text)
-    status = Column(String) # pending, approved, rejected
-    created_at = Column(DateTime)
+class Certificate(Base):
+    __tablename__ = "certificates"
 
-class SystemConfig:
-    id = Column(Integer, primary_key=True)
-    key = Column(String)
-    value = Column(String)
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    serial_number = Column(String(255), unique=True, index=True, nullable=False)
+    subject = Column(String(500), nullable=False)
+    issuer = Column(String(500), nullable=False)
+    valid_from = Column(DateTime, nullable=False)
+    valid_to = Column(DateTime, nullable=False)
+    status = Column(String(50), nullable=False, default="active") # active, revoked, expired
+    pem_data = Column(Text, nullable=False)
 
-class AuditLog:
-    id = Column(Integer, primary_key=True)
-    user_id = Column(Integer)
-    action = Column(String)
-    timestamp = Column(DateTime)
+    user = relationship("User", back_populates="certificates")
+
+class CertRequest(Base):
+    __tablename__ = "cert_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    csr_data = Column(Text, nullable=False)
+    status = Column(String(50), nullable=False, default="pending") # pending, approved, rejected
+    created_at = Column(DateTime, nullable=False)
+
+    user = relationship("User", back_populates="cert_requests")
+
+class SystemConfig(Base):
+    __tablename__ = "system_configs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    config_key = Column(String(255), unique=True, nullable=False)
+    config_value = Column(String(255), nullable=False)
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    action = Column(String(255), nullable=False)
+    timestamp = Column(DateTime, nullable=False)
     details = Column(Text)
+
+    user = relationship("User", back_populates="audit_logs")
