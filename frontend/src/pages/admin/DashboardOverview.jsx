@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ShieldAlert, RefreshCw } from 'lucide-react';
 import api from '../../api';
 
@@ -6,6 +6,39 @@ const DashboardOverview = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [crlLoading, setCrlLoading] = useState(false);
+
+  // State cho cấu hình thông số kỹ thuật chuẩn
+  const [configs, setConfigs] = useState({
+    asymmetric_algo: 'RSA',
+    hash_algo: 'SHA256',
+    validity_days: '365',
+    root_key_size: '4096',
+    client_key_size: '2048'
+  });
+  const [configLoading, setConfigLoading] = useState(true);
+  const [saveLoading, setSaveLoading] = useState(false);
+
+  const fetchConfigs = async () => {
+    try {
+      const response = await api.get('/admin/config');
+      const configMap = {};
+      response.data.forEach(item => {
+        configMap[item.config_key] = item.config_value;
+      });
+      setConfigs(prev => ({
+        ...prev,
+        ...configMap
+      }));
+    } catch (err) {
+      console.error("Lỗi tải cấu hình:", err);
+    } finally {
+      setConfigLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchConfigs();
+  }, []);
 
   const handleGenRootCA = async () => {
     if (!password) {
@@ -36,6 +69,21 @@ const DashboardOverview = () => {
       alert("Lỗi cập nhật CRL: " + (err.response?.data?.detail || err.message));
     } finally {
       setCrlLoading(false);
+    }
+  };
+
+  const handleSaveConfigs = async () => {
+    setSaveLoading(true);
+    try {
+      const promises = Object.entries(configs).map(([key, val]) => 
+        api.put('/admin/config', { key, value: String(val) })
+      );
+      await Promise.all(promises);
+      alert("Đã lưu các thông số cấu hình hệ thống thành công!");
+    } catch (err) {
+      alert("Lỗi lưu cấu hình: " + (err.response?.data?.detail || err.message));
+    } finally {
+      setSaveLoading(false);
     }
   };
 
@@ -79,8 +127,104 @@ const DashboardOverview = () => {
             <RefreshCw size={18} /> {crlLoading ? 'Đang cập nhật...' : 'Chạy Update CRL'}
           </button>
         </div>
+
+        <div style={{ 
+          gridColumn: '1 / span 2', 
+          border: '1px solid var(--border-color)', 
+          padding: '25px', 
+          borderRadius: '12px', 
+          backgroundColor: 'rgba(255, 255, 255, 0.02)',
+          marginTop: '10px'
+        }}>
+          <h3 style={{ color: 'var(--primary)', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            ⚙️ Cấu Hình Thông Số Kỹ Thuật Chuẩn
+          </h3>
+          <p style={{ fontSize: '0.9rem', marginBottom: '20px', color: '#94a3b8' }}>
+            Thiết lập các thuật toán, độ dài khóa và hiệu lực cho việc sinh chứng nhận Root CA và ký số chứng chỉ khách hàng (CSR).
+          </p>
+
+          {configLoading ? (
+            <p style={{ color: '#94a3b8' }}>Đang tải thông số cấu hình...</p>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+              <div>
+                <label style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '5px', display: 'block' }}>Thuật toán Bất đối xứng</label>
+                <select 
+                  className="input-field"
+                  value={configs.asymmetric_algo}
+                  onChange={(e) => setConfigs({ ...configs, asymmetric_algo: e.target.value })}
+                  style={{ color: 'white', backgroundColor: 'rgba(15, 23, 42, 0.9)' }}
+                >
+                  <option value="RSA">RSA (Rivest-Shamir-Adleman)</option>
+                  <option value="ECC" disabled>ECC (Elliptic Curve Cryptography - Sắp hỗ trợ)</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '5px', display: 'block' }}>Hàm băm mật mã (Hash Function)</label>
+                <select 
+                  className="input-field"
+                  value={configs.hash_algo}
+                  onChange={(e) => setConfigs({ ...configs, hash_algo: e.target.value })}
+                  style={{ color: 'white', backgroundColor: 'rgba(15, 23, 42, 0.9)' }}
+                >
+                  <option value="SHA256">SHA-256 (Khuyên dùng)</option>
+                  <option value="SHA384">SHA-384</option>
+                  <option value="SHA512">SHA-512</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '5px', display: 'block' }}>Độ dài khóa Root CA (Bits)</label>
+                <select 
+                  className="input-field"
+                  value={configs.root_key_size}
+                  onChange={(e) => setConfigs({ ...configs, root_key_size: e.target.value })}
+                  style={{ color: 'white', backgroundColor: 'rgba(15, 23, 42, 0.9)' }}
+                >
+                  <option value="2048">2048 bits</option>
+                  <option value="3072">3072 bits</option>
+                  <option value="4096">4096 bits (An toàn cao)</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '5px', display: 'block' }}>Độ dài khóa Khách hàng (Bits)</label>
+                <select 
+                  className="input-field"
+                  value={configs.client_key_size}
+                  onChange={(e) => setConfigs({ ...configs, client_key_size: e.target.value })}
+                  style={{ color: 'white', backgroundColor: 'rgba(15, 23, 42, 0.9)' }}
+                >
+                  <option value="2048">2048 bits (Tiêu chuẩn)</option>
+                  <option value="3072">3072 bits</option>
+                  <option value="4096">4096 bits</option>
+                </select>
+              </div>
+
+              <div style={{ gridColumn: '1 / span 2' }}>
+                <label style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '5px', display: 'block' }}>Thời gian hiệu lực mặc định (Ngày)</label>
+                <input 
+                  className="input-field"
+                  type="number"
+                  placeholder="365"
+                  value={configs.validity_days}
+                  onChange={(e) => setConfigs({ ...configs, validity_days: e.target.value })}
+                  min="1"
+                />
+              </div>
+
+              <div style={{ gridColumn: '1 / span 2', display: 'flex', justifyContent: 'flex-end' }}>
+                <button className="btn" onClick={handleSaveConfigs} disabled={saveLoading} style={{ minWidth: '150px' }}>
+                  {saveLoading ? 'Đang lưu...' : 'Lưu Cấu Hình'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 };
+
 export default DashboardOverview;

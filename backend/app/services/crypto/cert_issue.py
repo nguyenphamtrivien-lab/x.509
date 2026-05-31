@@ -12,9 +12,9 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
 
-def generate_root_ca(password: str, valid_days: int = 3650) -> tuple[str, str]:
-    """Tạo Root CA (Self-signed) với đầy đủ Extensions."""
-    private_key = rsa.generate_private_key(public_exponent=65537, key_size=4096)
+def generate_root_ca(password: str, valid_days: int = 3650, key_size: int = 4096, hash_name: str = "SHA256") -> tuple[str, str]:
+    """Tạo Root CA (Self-signed) với đầy đủ Extensions và cấu hình thuật toán."""
+    private_key = rsa.generate_private_key(public_exponent=65537, key_size=key_size)
     
     subject = issuer = x509.Name([
         x509.NameAttribute(NameOID.COUNTRY_NAME, "VN"),
@@ -24,6 +24,12 @@ def generate_root_ca(password: str, valid_days: int = 3650) -> tuple[str, str]:
         x509.NameAttribute(NameOID.COMMON_NAME, "X509 Local Root CA"),
     ])
     
+    hash_obj = hashes.SHA256()
+    if hash_name == "SHA384":
+        hash_obj = hashes.SHA384()
+    elif hash_name == "SHA512":
+        hash_obj = hashes.SHA512()
+
     cert = x509.CertificateBuilder().subject_name(
         subject
     ).issuer_name(
@@ -48,7 +54,7 @@ def generate_root_ca(password: str, valid_days: int = 3650) -> tuple[str, str]:
         ), critical=True,
     ).add_extension(
         x509.SubjectKeyIdentifier.from_public_key(private_key.public_key()), critical=False,
-    ).sign(private_key, hashes.SHA256())
+    ).sign(private_key, hash_obj)
 
     encryption_algorithm = serialization.BestAvailableEncryption(password.encode("utf-8"))
     
@@ -62,8 +68,8 @@ def generate_root_ca(password: str, valid_days: int = 3650) -> tuple[str, str]:
     return key_pem.decode("utf-8"), cert_pem.decode("utf-8")
 
 
-def sign_csr(csr_pem_str: str, root_key_pem_str: str, root_cert_pem_str: str, root_password: str, valid_days: int = 365) -> str:
-    """Ký một CSR bằng Root CA — có verify signature và thêm Extensions."""
+def sign_csr(csr_pem_str: str, root_key_pem_str: str, root_cert_pem_str: str, root_password: str, valid_days: int = 365, hash_name: str = "SHA256") -> str:
+    """Ký một CSR bằng Root CA — có verify signature, thêm Extensions và dùng thuật toán cấu hình động."""
     csr = x509.load_pem_x509_csr(csr_pem_str.encode("utf-8"))
     
     # Fix #9: Verify CSR signature (proof-of-possession)
@@ -118,5 +124,11 @@ def sign_csr(csr_pem_str: str, root_key_pem_str: str, root_cert_pem_str: str, ro
             critical=False,
         )
 
-    cert = builder.sign(root_key, hashes.SHA256())
+    hash_obj = hashes.SHA256()
+    if hash_name == "SHA384":
+        hash_obj = hashes.SHA384()
+    elif hash_name == "SHA512":
+        hash_obj = hashes.SHA512()
+
+    cert = builder.sign(root_key, hash_obj)
     return cert.public_bytes(serialization.Encoding.PEM).decode("utf-8")

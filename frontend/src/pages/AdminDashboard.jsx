@@ -1,8 +1,9 @@
 import React from 'react';
 import { Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
-import { ShieldAlert, ListChecks, ScrollText, Lock, LogOut } from 'lucide-react';
+import { ShieldAlert, ListChecks, ShieldOff, ScrollText, Lock, LogOut } from 'lucide-react';
 import DashboardOverview from './admin/DashboardOverview';
 import Requests from './admin/Requests';
+import RevocationRequests from './admin/RevocationRequests';
 import AuditLogs from './admin/AuditLogs';
 import ChangePassword from './shared/ChangePassword';
 
@@ -18,6 +19,7 @@ const AdminDashboard = () => {
   const navItems = [
     { path: '/admin/overview', label: 'Tổng Quan & Root CA', icon: ShieldAlert },
     { path: '/admin/requests', label: 'Duyệt Yêu Cầu', icon: ListChecks },
+    { path: '/admin/revocations', label: 'Yêu Cầu Thu Hồi', icon: ShieldOff },
     { path: '/admin/audit-logs', label: 'Nhật Ký Hệ Thống', icon: ScrollText },
     { path: '/admin/change-password', label: 'Đổi Mật Khẩu', icon: Lock },
   ];
@@ -59,6 +61,7 @@ const AdminDashboard = () => {
           <Routes>
             <Route path="overview" element={<DashboardOverview />} />
             <Route path="requests" element={<Requests />} />
+            <Route path="revocations" element={<RevocationRequests />} />
             <Route path="audit-logs" element={<AuditLogs />} />
             <Route path="change-password" element={<ChangePassword />} />
             <Route path="*" element={<DashboardOverview />} />

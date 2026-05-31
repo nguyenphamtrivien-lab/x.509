@@ -13,11 +13,11 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Fix #14: Auto-logout khi token hết hạn (401)
+// Fix #14: Auto-logout khi token hết hạn (401) - Ngoại trừ API login
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    if (error.response?.status === 401 && !error.config.url.includes('/auth/login')) {
       localStorage.clear();
       window.location.href = '/login';
     }

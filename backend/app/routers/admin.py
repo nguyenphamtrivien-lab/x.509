@@ -25,9 +25,24 @@ class ConfigUpdate(BaseModel):
     key: str
     value: str
 
+def seed_configs(db: Session):
+    defaults = {
+        "asymmetric_algo": "RSA",
+        "hash_algo": "SHA256",
+        "validity_days": "365",
+        "root_key_size": "4096",
+        "client_key_size": "2048"
+    }
+    for key, val in defaults.items():
+        exists = db.query(SystemConfig).filter(SystemConfig.config_key == key).first()
+        if not exists:
+            db.add(SystemConfig(config_key=key, config_value=val))
+    db.commit()
+
 @router.get("/config")
 async def get_config(current_admin: User = Depends(get_current_admin), db: Session = Depends(get_db)):
     """Lấy danh sách cấu hình hệ thống."""
+    seed_configs(db)
     return db.query(SystemConfig).all()
 
 @router.get("/csrs")
@@ -61,7 +76,21 @@ async def update_config(req: ConfigUpdate, current_admin: User = Depends(get_cur
 async def gen_root_ca(req: RootCaRequest, current_admin: User = Depends(get_current_admin), db: Session = Depends(get_db)):
     """Generate a new Root CA và lưu vào SystemConfig."""
     try:
-        root_key, root_cert = generate_root_ca(password=req.password)
+        # Load configs
+        key_size_cfg = db.query(SystemConfig).filter(SystemConfig.config_key == "root_key_size").first()
+        hash_cfg = db.query(SystemConfig).filter(SystemConfig.config_key == "hash_algo").first()
+        val_cfg = db.query(SystemConfig).filter(SystemConfig.config_key == "validity_days").first()
+        
+        key_size = int(key_size_cfg.config_value) if key_size_cfg else 4096
+        hash_name = hash_cfg.config_value if hash_cfg else "SHA256"
+        valid_days = int(val_cfg.config_value) * 10 if val_cfg else 3650 # Root CA hạn dài gấp 10 lần client
+        
+        root_key, root_cert = generate_root_ca(
+            password=req.password, 
+            valid_days=valid_days, 
+            key_size=key_size, 
+            hash_name=hash_name
+        )
         
         for key, value in [("root_key_pem", root_key), ("root_cert_pem", root_cert)]:
             config = db.query(SystemConfig).filter(SystemConfig.config_key == key).first()
@@ -90,12 +119,20 @@ async def approve_csr(csr_id: int, req: RootCaRequest, current_admin: User = Dep
         raise HTTPException(status_code=500, detail="Root CA not found in system")
 
     try:
+        # Load configs
+        val_cfg = db.query(SystemConfig).filter(SystemConfig.config_key == "validity_days").first()
+        hash_cfg = db.query(SystemConfig).filter(SystemConfig.config_key == "hash_algo").first()
+        
+        valid_days = int(val_cfg.config_value) if val_cfg else 365
+        hash_name = hash_cfg.config_value if hash_cfg else "SHA256"
+
         cert_pem = sign_csr(
             csr_pem_str=csr_req.csr_data,
             root_key_pem_str=root_key_cfg.config_value,
             root_cert_pem_str=root_cert_cfg.config_value,
             root_password=req.password,
-            valid_days=365
+            valid_days=valid_days,
+            hash_name=hash_name
         )
         from cryptography import x509
         cert_obj = x509.load_pem_x509_certificate(cert_pem.encode('utf-8'))

@@ -29,12 +29,15 @@ class DecodeCertRequest(BaseModel):
     cert_pem: str
 
 @router.post("/gen-keypair")
-async def gen_keypair(req: KeyGenRequest, current_user: User = Depends(get_current_user)):
+async def gen_keypair(req: KeyGenRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Generate a new RSA keypair. Fix #12: Non-blocking."""
     try:
+        key_size_cfg = db.query(SystemConfig).filter(SystemConfig.config_key == "client_key_size").first()
+        key_size = int(key_size_cfg.config_value) if key_size_cfg else 2048
+        
         loop = asyncio.get_event_loop()
         priv_pem, pub_pem = await loop.run_in_executor(
-            executor, generate_rsa_keypair, req.password
+            executor, generate_rsa_keypair, req.password, key_size
         )
         return {"private_key": priv_pem, "public_key": pub_pem}
     except Exception as e:

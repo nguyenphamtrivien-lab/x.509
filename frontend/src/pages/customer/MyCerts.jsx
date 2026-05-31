@@ -1,15 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, Download, AlertTriangle } from 'lucide-react';
+import { ShieldCheck, Download, AlertTriangle, Clock } from 'lucide-react';
 import api from '../../api';
 
 const MyCerts = () => {
   const [certs, setCerts] = useState([]);
+  const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchCerts = async () => {
+  const fetchData = async () => {
     try {
-      const response = await api.get('/customer/certs');
-      setCerts(response.data);
+      const [certsRes, reqsRes] = await Promise.all([
+        api.get('/customer/certs'),
+        api.get('/customer/csr-requests')
+      ]);
+      setCerts(certsRes.data);
+      setRequests(reqsRes.data);
     } catch (err) {
       console.error(err);
     } finally {
@@ -18,7 +23,7 @@ const MyCerts = () => {
   };
 
   useEffect(() => {
-    fetchCerts();
+    fetchData();
   }, []);
 
   const handleDownload = async (certId, serialHex) => {
@@ -41,7 +46,7 @@ const MyCerts = () => {
     try {
       await api.post(`/customer/certs/${certId}/request-revoke`);
       alert("Đã gửi yêu cầu thu hồi!");
-      fetchCerts();
+      fetchData();
     } catch (err) {
       alert("Lỗi: " + (err.response?.data?.detail || err.message));
     }
@@ -49,6 +54,7 @@ const MyCerts = () => {
 
   return (
     <div>
+      {/* PHẦN 1: DANH SÁCH CHỨNG CHỈ ĐÃ CẤP */}
       <h2 style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
         <ShieldCheck /> Chứng Chỉ Của Tôi
       </h2>
@@ -56,11 +62,11 @@ const MyCerts = () => {
       {loading ? (
         <p style={{ color: '#94a3b8' }}>Đang tải dữ liệu...</p>
       ) : certs.length === 0 ? (
-        <div style={{ padding: '30px', textAlign: 'center', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
-          <p style={{ color: '#94a3b8' }}>Bạn chưa có chứng chỉ nào.</p>
+        <div style={{ padding: '30px', textAlign: 'center', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', marginBottom: '40px' }}>
+          <p style={{ color: '#94a3b8' }}>Bạn chưa có chứng chỉ nào được cấp phát.</p>
         </div>
       ) : (
-        <table>
+        <table style={{ marginBottom: '40px' }}>
           <thead>
             <tr>
               <th>ID</th>
@@ -89,17 +95,63 @@ const MyCerts = () => {
                   </span>
                 </td>
                 <td>{new Date(cert.valid_to).toLocaleDateString()}</td>
-                <td style={{ display: 'flex', gap: '8px' }}>
-                  {cert.status === 'active' && (
-                    <>
-                      <button className="btn" style={{ padding: '6px 10px', fontSize: '13px' }} onClick={() => handleDownload(cert.id, cert.serial_number)}>
-                        <Download size={14} /> Tải
-                      </button>
+                <td>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button className="btn" style={{ padding: '6px 10px', fontSize: '13px' }} onClick={() => handleDownload(cert.id, cert.serial_number)}>
+                      <Download size={14} /> Tải
+                    </button>
+                    {cert.status === 'active' && (
                       <button className="btn btn-danger" style={{ padding: '6px 10px', fontSize: '13px' }} onClick={() => handleRequestRevoke(cert.id)}>
                         <AlertTriangle size={14} /> Thu hồi
                       </button>
-                    </>
-                  )}
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      {/* PHẦN 2: DANH SÁCH YÊU CẦU CSR VÀ TRẠNG THÁI */}
+      <h2 style={{ marginBottom: '20px', marginTop: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <Clock /> Danh Sách Yêu Cầu Cấp Phát (CSR)
+      </h2>
+
+      {loading ? (
+        <p style={{ color: '#94a3b8' }}>Đang tải dữ liệu...</p>
+      ) : requests.length === 0 ? (
+        <div style={{ padding: '30px', textAlign: 'center', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+          <p style={{ color: '#94a3b8' }}>Chưa có yêu cầu cấp phát CSR nào được gửi.</p>
+        </div>
+      ) : (
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Ngày gửi</th>
+              <th>Mã CSR (Xem trước)</th>
+              <th>Trạng thái yêu cầu</th>
+            </tr>
+          </thead>
+          <tbody>
+            {requests.map(req => (
+              <tr key={req.id}>
+                <td>{req.id}</td>
+                <td>{new Date(req.created_at).toLocaleString()}</td>
+                <td style={{ fontFamily: 'monospace', fontSize: '12px', color: '#94a3b8' }}>
+                  {req.csr_data.substring(0, 50)}...
+                </td>
+                <td>
+                  <span style={{ 
+                    padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold',
+                    backgroundColor: req.status === 'approved' ? 'rgba(16, 185, 129, 0.2)' : 
+                                   req.status === 'rejected' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(59, 130, 246, 0.2)',
+                    color: req.status === 'approved' ? 'var(--success)' : 
+                           req.status === 'rejected' ? 'var(--danger)' : 'var(--primary)'
+                  }}>
+                    {req.status.toUpperCase()}
+                  </span>
                 </td>
               </tr>
             ))}
@@ -109,4 +161,5 @@ const MyCerts = () => {
     </div>
   );
 };
+
 export default MyCerts;
